@@ -24,11 +24,12 @@ DUMMY_KEY="sk-opencode-dummy"
 # Last 20 chars of the key is how the config file identifies it (normalizeApiKeyForConfig)
 KEY_SUFFIX="${DUMMY_KEY: -20}"
 
-# Pre-create a minimal config file so the app doesn't ask to "approve" the dummy key
-CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$(mktemp -d /tmp/open-claude-XXXXXX)}"
+# Persistent config directory for sessions, conversations, etc.
+CONFIG_DIR="${CLAUDE_CONFIG_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/open-claude}"
 mkdir -p "$CONFIG_DIR"
 CONFIG_FILE="$CONFIG_DIR/.claude.json"
-cat > "$CONFIG_FILE" <<CONF
+if [ ! -f "$CONFIG_FILE" ]; then
+  cat > "$CONFIG_FILE" <<CONF
 {
   "theme": "dark",
   "hasCompletedOnboarding": true,
@@ -37,6 +38,7 @@ cat > "$CONFIG_FILE" <<CONF
   }
 }
 CONF
+fi
 
 # Force opencode free tier.
 # OPEN_CLAUDE_ENABLED=true bypasses the ANTHROPIC_API_KEY check in isOpencodeEnabled().
