@@ -14,7 +14,7 @@
 # To use your Anthropic account instead:
 #   ANTHROPIC_API_KEY=sk-... ./run.sh
 
-DIR="$(cd "$(dirname "$0")" && pwd)"
+DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 BUN="${BUN:-$(command -v bun 2>/dev/null || echo "$HOME/.bun/bin/bun")}"
 
 # Dummy API key — needed to skip the OAuth login screen.
