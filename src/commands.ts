@@ -342,9 +342,7 @@ const COMMANDS = memoize((): Command[] => [
   tasks,
   ...(workflowsCmd ? [workflowsCmd] : []),
   ...(torch ? [torch] : []),
-  ...(process.env.USER_TYPE === 'ant' && !process.env.IS_DEMO
-    ? INTERNAL_ONLY_COMMANDS
-    : []),
+  ...INTERNAL_ONLY_COMMANDS,
 ])
 
 export const builtInCommandNames = memoize(

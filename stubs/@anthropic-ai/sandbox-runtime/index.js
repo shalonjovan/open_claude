@@ -1,6 +1,7 @@
 export class SandboxManager {
-  static isSupportedPlatform() { return false }
+  static isSupportedPlatform() { return true }
   static isEnabled() { return false }
+  static checkDependencies() { return { errors: [], warnings: [] } }
   static getFsReadConfig() { return {} }
   static getFsWriteConfig() { return {} }
   static getNetworkRestrictionConfig() { return {} }
@@ -16,6 +17,10 @@ export class SandboxManager {
   static getSandboxViolationStore() { return new SandboxViolationStore() }
   static annotateStderrWithSandboxFailures(_command, stderr) { return stderr }
   static cleanupAfterCommand() {}
+  static initialize() { return Promise.resolve() }
+  static updateConfig() {}
+  static reset() { return Promise.resolve() }
+  static wrapWithSandbox(command) { return command }
   constructor() {}
   async init() {}
   async destroy() {}
