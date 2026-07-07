@@ -14,8 +14,26 @@
 # To use your Anthropic account instead:
 #   ANTHROPIC_API_KEY=sk-... ./run.sh
 
-DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+# Portable symlink resolution (works on Linux, macOS, Windows/MinGW)
+_resolve_realpath() {
+  local script="$1"
+  while [ -h "$script" ]; do
+    local link="$(readlink "$script")"
+    case "$link" in
+      /*) script="$link" ;;
+      *)  script="$(cd "$(dirname "$script")" && pwd)/$link" ;;
+    esac
+  done
+  cd "$(dirname "$script")" && pwd
+}
+DIR="$(_resolve_realpath "$0")"
 BUN="${BUN:-$(command -v bun 2>/dev/null || echo "$HOME/.bun/bin/bun")}"
+
+# Auto-install deps if missing
+if [ ! -f "$DIR/node_modules/@anthropic-ai/sandbox-runtime/index.js" ]; then
+  echo "→ Installing dependencies..."
+  "$BUN" install --cwd "$DIR"
+fi
 
 # Dummy API key — needed to skip the OAuth login screen.
 # All model queries go through the opencode free tier (OPEN_CLAUDE_ENABLED=true).
