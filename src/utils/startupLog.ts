@@ -2,7 +2,7 @@
 const LOG = "/tmp/opencode/trace.log"
 let enabled = true
 try {
-  const { appendFileSync } = await import("fs")
+  const { appendFileSync } = await import("node:fs")
   export function trace(msg: string) {
     if (!enabled) return
     try { appendFileSync(LOG, `[${Date.now()}] ${msg}\n`) } catch {}

@@ -1,1 +1,2 @@
-export const cachedMicrocompact = {}; export default {};
+export const cachedMicrocompact = {};
+export default {};

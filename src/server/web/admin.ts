@@ -1,6 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Router } from "express";
-import { join } from "path";
-import { readFileSync } from "fs";
 import type { Request, Response } from "express";
 import type { AuthenticatedRequest } from "./auth/adapter.js";
 import type { SessionManager } from "./session-manager.js";
@@ -15,81 +15,81 @@ import type { UserStore } from "./user-store.js";
  */
 
 function requireAdmin(req: Request, res: Response, next: () => void): void {
-  const user = (req as AuthenticatedRequest).user;
-  if (!user?.isAdmin) {
-    res.status(403).json({ error: "Forbidden" });
-    return;
-  }
-  next();
+	const user = (req as AuthenticatedRequest).user;
+	if (!user?.isAdmin) {
+		res.status(403).json({ error: "Forbidden" });
+		return;
+	}
+	next();
 }
 
 export function createAdminRouter(
-  sessionManager: SessionManager,
-  userStore: UserStore,
+	sessionManager: SessionManager,
+	userStore: UserStore,
 ): Router {
-  const router = Router();
+	const router = Router();
 
-  // All admin routes require admin role.
-  router.use(requireAdmin);
+	// All admin routes require admin role.
+	router.use(requireAdmin);
 
-  // ── Dashboard UI ──────────────────────────────────────────────────────────
+	// ── Dashboard UI ──────────────────────────────────────────────────────────
 
-  router.get("/", (_req, res) => {
-    try {
-      const p = join(import.meta.dirname, "public/admin.html");
-      res.setHeader("Content-Type", "text/html");
-      res.send(readFileSync(p, "utf8"));
-    } catch {
-      res.setHeader("Content-Type", "text/html");
-      res.send(INLINE_ADMIN_HTML);
-    }
-  });
+	router.get("/", (_req, res) => {
+		try {
+			const p = join(import.meta.dirname, "public/admin.html");
+			res.setHeader("Content-Type", "text/html");
+			res.send(readFileSync(p, "utf8"));
+		} catch {
+			res.setHeader("Content-Type", "text/html");
+			res.send(INLINE_ADMIN_HTML);
+		}
+	});
 
-  // ── API: all active sessions ──────────────────────────────────────────────
+	// ── API: all active sessions ──────────────────────────────────────────────
 
-  /**
-   * GET /admin/sessions
-   * Returns all active sessions across all users.
-   */
-  router.get("/sessions", (_req, res) => {
-    const sessions = sessionManager.getAllSessions().map((s) => ({
-      id: s.token,
-      userId: s.userId,
-      createdAt: s.created,
-      ageMs: Date.now() - new Date(s.created).getTime(),
-      alive: s.alive,
-    }));
-    res.json({ sessions });
-  });
+	/**
+	 * GET /admin/sessions
+	 * Returns all active sessions across all users.
+	 */
+	router.get("/sessions", (_req, res) => {
+		const sessions = sessionManager.getAllSessions().map((s) => ({
+			id: s.token,
+			userId: s.userId,
+			createdAt: s.created,
+			ageMs: Date.now() - new Date(s.created).getTime(),
+			alive: s.alive,
+		}));
+		res.json({ sessions });
+	});
 
-  // ── API: all connected users ──────────────────────────────────────────────
+	// ── API: all connected users ──────────────────────────────────────────────
 
-  /**
-   * GET /admin/users
-   * Returns all users that currently have at least one active session.
-   */
-  router.get("/users", (_req, res) => {
-    res.json({ users: userStore.list() });
-  });
+	/**
+	 * GET /admin/users
+	 * Returns all users that currently have at least one active session.
+	 */
+	router.get("/users", (_req, res) => {
+		res.json({ users: userStore.list() });
+	});
 
-  // ── API: force-kill a session ─────────────────────────────────────────────
+	// ── API: force-kill a session ─────────────────────────────────────────────
 
-  /**
-   * DELETE /admin/sessions/:token
-   * Force-kills the specified session regardless of which user owns it.
-   */
-  router.delete("/sessions/:token", (req, res) => {
-    const { token } = req.params;
-    const session = sessionManager.getSession(token);
-    if (!session) {
-      res.status(404).json({ error: "Session not found" });
-      return;
-    }
-    sessionManager.destroySession(token);
-    res.json({ ok: true, destroyed: token });
-  });
+	/**
+	 * DELETE /admin/sessions/:token
+	 * Force-kills the specified session regardless of which user owns it.
+	 */
+	router.delete("/sessions/:token", (req, res) => {
+		const { token } = req.params;
+		const session = sessionManager.getSession(token);
+		if (!session) {
+			res.status(404).json({ error: "Session not found" });
+			return;
+		}
+		sessionManager.destroySession(token);
+		res.json({ ok: true, destroyed: token });
+	});
 
-  return router;
+	return router;
 }
 
 // ── Inline admin dashboard HTML ───────────────────────────────────────────────

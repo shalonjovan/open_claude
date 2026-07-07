@@ -1,1 +1,2 @@
-export const templateJobs = {}; export default {};
+export const templateJobs = {};
+export default {};

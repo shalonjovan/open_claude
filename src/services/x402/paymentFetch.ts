@@ -13,12 +13,12 @@
  * both the Anthropic SDK client and the WebFetchTool.
  */
 
-import type { AxiosInstance, AxiosResponse } from 'axios'
-import { logForDebugging } from '../../utils/debug.js'
-import { handlePaymentRequired } from './client.js'
-import { isX402Enabled } from './config.js'
-import { getX402SessionSpentUSD } from './tracker.js'
-import { X402_HEADERS } from './types.js'
+import type { AxiosInstance, AxiosResponse } from "axios";
+import { logForDebugging } from "../../utils/debug.js";
+import { handlePaymentRequired } from "./client.js";
+import { isX402Enabled } from "./config.js";
+import { getX402SessionSpentUSD } from "./tracker.js";
+import { X402_HEADERS } from "./types.js";
 
 /**
  * Create a fetch wrapper that intercepts 402 responses and handles x402 payment.
@@ -31,73 +31,71 @@ import { X402_HEADERS } from './types.js'
  * @returns A fetch-compatible function with x402 payment handling
  */
 export function wrapFetchWithX402(
-  innerFetch: typeof globalThis.fetch,
+	innerFetch: typeof globalThis.fetch,
 ): typeof globalThis.fetch {
-  return async (
-    input: RequestInfo | URL,
-    init?: RequestInit,
-  ): Promise<Response> => {
-    // Make the initial request
-    const response = await innerFetch(input, init)
+	return async (
+		input: RequestInfo | URL,
+		init?: RequestInit,
+	): Promise<Response> => {
+		// Make the initial request
+		const response = await innerFetch(input, init);
 
-    // If not a 402, pass through
-    if (response.status !== 402) {
-      return response
-    }
+		// If not a 402, pass through
+		if (response.status !== 402) {
+			return response;
+		}
 
-    // Check if x402 is enabled
-    if (!isX402Enabled()) {
-      logForDebugging('[x402] Received 402 but x402 payments are not enabled')
-      return response
-    }
+		// Check if x402 is enabled
+		if (!isX402Enabled()) {
+			logForDebugging("[x402] Received 402 but x402 payments are not enabled");
+			return response;
+		}
 
-    // Check for the x402 payment requirement header
-    const paymentRequiredHeader = response.headers.get(
-      X402_HEADERS.PAYMENT_REQUIRED,
-    )
-    if (!paymentRequiredHeader) {
-      logForDebugging(
-        '[x402] Received 402 but no X-Payment-Required header present',
-      )
-      return response
-    }
+		// Check for the x402 payment requirement header
+		const paymentRequiredHeader = response.headers.get(
+			X402_HEADERS.PAYMENT_REQUIRED,
+		);
+		if (!paymentRequiredHeader) {
+			logForDebugging(
+				"[x402] Received 402 but no X-Payment-Required header present",
+			);
+			return response;
+		}
 
-    logForDebugging(`[x402] Received 402 Payment Required, processing...`)
+		logForDebugging("[x402] Received 402 Payment Required, processing...");
 
-    // Handle the payment
-    const result = handlePaymentRequired(
-      paymentRequiredHeader,
-      getX402SessionSpentUSD(),
-    )
+		// Handle the payment
+		const result = handlePaymentRequired(
+			paymentRequiredHeader,
+			getX402SessionSpentUSD(),
+		);
 
-    if (!result) {
-      logForDebugging('[x402] Payment handling failed, returning original 402')
-      return response
-    }
+		if (!result) {
+			logForDebugging("[x402] Payment handling failed, returning original 402");
+			return response;
+		}
 
-    // Retry with payment header
-    logForDebugging('[x402] Retrying request with payment header')
+		// Retry with payment header
+		logForDebugging("[x402] Retrying request with payment header");
 
-    const retryHeaders = new Headers(init?.headers)
-    retryHeaders.set(X402_HEADERS.PAYMENT, result.paymentHeader)
+		const retryHeaders = new Headers(init?.headers);
+		retryHeaders.set(X402_HEADERS.PAYMENT, result.paymentHeader);
 
-    const retryResponse = await innerFetch(input, {
-      ...init,
-      headers: retryHeaders,
-    })
+		const retryResponse = await innerFetch(input, {
+			...init,
+			headers: retryHeaders,
+		});
 
-    if (retryResponse.status === 402) {
-      logForDebugging(
-        '[x402] Payment was rejected by server (still got 402)',
-      )
-    } else {
-      logForDebugging(
-        `[x402] Payment accepted, response status: ${retryResponse.status}`,
-      )
-    }
+		if (retryResponse.status === 402) {
+			logForDebugging("[x402] Payment was rejected by server (still got 402)");
+		} else {
+			logForDebugging(
+				`[x402] Payment accepted, response status: ${retryResponse.status}`,
+			);
+		}
 
-    return retryResponse
-  }
+		return retryResponse;
+	};
 }
 
 /**
@@ -109,48 +107,50 @@ export function wrapFetchWithX402(
  * @param instance - The axios instance to add the interceptor to
  */
 export function addX402AxiosInterceptor(instance: AxiosInstance): void {
-  instance.interceptors.response.use(
-    // Success handler — pass through non-402 responses
-    (response) => response,
-    // Error handler — intercept 402 responses
-    async (error) => {
-      if (
-        !error.response ||
-        error.response.status !== 402 ||
-        !isX402Enabled()
-      ) {
-        throw error
-      }
+	instance.interceptors.response.use(
+		// Success handler — pass through non-402 responses
+		(response) => response,
+		// Error handler — intercept 402 responses
+		async (error) => {
+			if (
+				!error.response ||
+				error.response.status !== 402 ||
+				!isX402Enabled()
+			) {
+				throw error;
+			}
 
-      const response: AxiosResponse = error.response
+			const response: AxiosResponse = error.response;
 
-      const paymentRequiredHeader =
-        response.headers[X402_HEADERS.PAYMENT_REQUIRED]
-      if (!paymentRequiredHeader) {
-        throw error
-      }
+			const paymentRequiredHeader =
+				response.headers[X402_HEADERS.PAYMENT_REQUIRED];
+			if (!paymentRequiredHeader) {
+				throw error;
+			}
 
-      logForDebugging('[x402] Axios interceptor: handling 402 Payment Required')
+			logForDebugging(
+				"[x402] Axios interceptor: handling 402 Payment Required",
+			);
 
-      const result = handlePaymentRequired(
-        paymentRequiredHeader,
-        getX402SessionSpentUSD(),
-      )
+			const result = handlePaymentRequired(
+				paymentRequiredHeader,
+				getX402SessionSpentUSD(),
+			);
 
-      if (!result) {
-        throw error
-      }
+			if (!result) {
+				throw error;
+			}
 
-      // Retry the original request with the payment header
-      const retryConfig = {
-        ...error.config,
-        headers: {
-          ...error.config.headers,
-          [X402_HEADERS.PAYMENT]: result.paymentHeader,
-        },
-      }
+			// Retry the original request with the payment header
+			const retryConfig = {
+				...error.config,
+				headers: {
+					...error.config.headers,
+					[X402_HEADERS.PAYMENT]: result.paymentHeader,
+				},
+			};
 
-      return instance.request(retryConfig)
-    },
-  )
+			return instance.request(retryConfig);
+		},
+	);
 }

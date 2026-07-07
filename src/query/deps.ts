@@ -1,8 +1,11 @@
-import { randomUUID } from 'crypto'
-import { queryModelWithStreaming } from '../services/api/claude.js'
-import { queryModelWithOpencodeStreaming, isOpencodeEnabled } from '../services/api/opencode-query.js'
-import { autoCompactIfNeeded } from '../services/compact/autoCompact.js'
-import { microcompactMessages } from '../services/compact/microCompact.js'
+import { randomUUID } from "node:crypto";
+import { queryModelWithStreaming } from "../services/api/claude.js";
+import {
+	isOpencodeEnabled,
+	queryModelWithOpencodeStreaming,
+} from "../services/api/opencode-query.js";
+import { autoCompactIfNeeded } from "../services/compact/autoCompact.js";
+import { microcompactMessages } from "../services/compact/microCompact.js";
 
 // -- deps
 
@@ -20,23 +23,24 @@ import { microcompactMessages } from '../services/compact/microCompact.js'
 // Scope is intentionally narrow (4 deps) to prove the pattern. Followup
 // PRs can add runTools, handleStopHooks, logEvent, queue ops, etc.
 export type QueryDeps = {
-  // -- model
-  callModel: typeof queryModelWithStreaming
+	// -- model
+	callModel: typeof queryModelWithStreaming;
 
-  // -- compaction
-  microcompact: typeof microcompactMessages
-  autocompact: typeof autoCompactIfNeeded
+	// -- compaction
+	microcompact: typeof microcompactMessages;
+	autocompact: typeof autoCompactIfNeeded;
 
-  // -- platform
-  uuid: () => string
-}
+	// -- platform
+	uuid: () => string;
+};
 
 export function productionDeps(): QueryDeps {
-  return {
-    callModel: isOpencodeEnabled() ? (queryModelWithOpencodeStreaming as unknown as typeof queryModelWithStreaming) : queryModelWithStreaming,
-    microcompact: microcompactMessages,
-    autocompact: autoCompactIfNeeded,
-    uuid: randomUUID,
-  }
+	return {
+		callModel: isOpencodeEnabled()
+			? (queryModelWithOpencodeStreaming as unknown as typeof queryModelWithStreaming)
+			: queryModelWithStreaming,
+		microcompact: microcompactMessages,
+		autocompact: autoCompactIfNeeded,
+		uuid: randomUUID,
+	};
 }
-

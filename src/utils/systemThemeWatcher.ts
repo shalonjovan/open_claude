@@ -1,1 +1,4 @@
-export function watchSystemTheme() {}; export function getSystemTheme() { return "dark" };
+export function watchSystemTheme() {}
+export function getSystemTheme() {
+	return "dark";
+}

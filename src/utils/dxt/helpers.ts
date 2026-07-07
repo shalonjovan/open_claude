@@ -1,6 +1,6 @@
-import type { McpbManifest } from '@anthropic-ai/mcpb'
-import { errorMessage } from '../errors.js'
-import { jsonParse } from '../slowOperations.js'
+import type { McpbManifest } from "@anthropic-ai/mcpb";
+import { errorMessage } from "../errors.js";
+import { jsonParse } from "../slowOperations.js";
 
 /**
  * Parses and validates a DXT manifest from a JSON object.
@@ -11,53 +11,53 @@ import { jsonParse } from '../slowOperations.js'
  * closures out of the startup heap for sessions that never touch .dxt/.mcpb.
  */
 export async function validateManifest(
-  manifestJson: unknown,
+	manifestJson: unknown,
 ): Promise<McpbManifest> {
-  const { McpbManifestSchema } = await import('@anthropic-ai/mcpb')
-  const parseResult = McpbManifestSchema.safeParse(manifestJson)
+	const { McpbManifestSchema } = await import("@anthropic-ai/mcpb");
+	const parseResult = McpbManifestSchema.safeParse(manifestJson);
 
-  if (!parseResult.success) {
-    const errors = parseResult.error.flatten()
-    const errorMessages = [
-      ...Object.entries(errors.fieldErrors).map(
-        ([field, errs]) => `${field}: ${errs?.join(', ')}`,
-      ),
-      ...(errors.formErrors || []),
-    ]
-      .filter(Boolean)
-      .join('; ')
+	if (!parseResult.success) {
+		const errors = parseResult.error.flatten();
+		const errorMessages = [
+			...Object.entries(errors.fieldErrors).map(
+				([field, errs]) => `${field}: ${errs?.join(", ")}`,
+			),
+			...(errors.formErrors || []),
+		]
+			.filter(Boolean)
+			.join("; ");
 
-    throw new Error(`Invalid manifest: ${errorMessages}`)
-  }
+		throw new Error(`Invalid manifest: ${errorMessages}`);
+	}
 
-  return parseResult.data
+	return parseResult.data;
 }
 
 /**
  * Parses and validates a DXT manifest from raw text data.
  */
 export async function parseAndValidateManifestFromText(
-  manifestText: string,
+	manifestText: string,
 ): Promise<McpbManifest> {
-  let manifestJson: unknown
+	let manifestJson: unknown;
 
-  try {
-    manifestJson = jsonParse(manifestText)
-  } catch (error) {
-    throw new Error(`Invalid JSON in manifest.json: ${errorMessage(error)}`)
-  }
+	try {
+		manifestJson = jsonParse(manifestText);
+	} catch (error) {
+		throw new Error(`Invalid JSON in manifest.json: ${errorMessage(error)}`);
+	}
 
-  return validateManifest(manifestJson)
+	return validateManifest(manifestJson);
 }
 
 /**
  * Parses and validates a DXT manifest from raw binary data.
  */
 export async function parseAndValidateManifestFromBytes(
-  manifestData: Uint8Array,
+	manifestData: Uint8Array,
 ): Promise<McpbManifest> {
-  const manifestText = new TextDecoder().decode(manifestData)
-  return parseAndValidateManifestFromText(manifestText)
+	const manifestText = new TextDecoder().decode(manifestData);
+	return parseAndValidateManifestFromText(manifestText);
 }
 
 /**
@@ -65,25 +65,24 @@ export async function parseAndValidateManifestFromBytes(
  * Uses the same algorithm as the directory backend for consistency.
  */
 export function generateExtensionId(
-  manifest: McpbManifest,
-  prefix?: 'local.unpacked' | 'local.dxt',
+	manifest: McpbManifest,
+	prefix?: "local.unpacked" | "local.dxt",
 ): string {
-  const sanitize = (str: string) =>
-    str
-      .toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9-_.]/g, '')
-      .replace(/-+/g, '-')
-      .replace(/^-+|-+$/g, '')
+	const sanitize = (str: string) =>
+		str
+			.toLowerCase()
+			.replace(/\s+/g, "-")
+			.replace(/[^a-z0-9-_.]/g, "")
+			.replace(/-+/g, "-")
+			.replace(/^-+|-+$/g, "");
 
-  const authorName = manifest.author.name
-  const extensionName = manifest.name
+	const authorName = manifest.author.name;
+	const extensionName = manifest.name;
 
-  const sanitizedAuthor = sanitize(authorName)
-  const sanitizedName = sanitize(extensionName)
+	const sanitizedAuthor = sanitize(authorName);
+	const sanitizedName = sanitize(extensionName);
 
-  return prefix
-    ? `${prefix}.${sanitizedAuthor}.${sanitizedName}`
-    : `${sanitizedAuthor}.${sanitizedName}`
+	return prefix
+		? `${prefix}.${sanitizedAuthor}.${sanitizedName}`
+		: `${sanitizedAuthor}.${sanitizedName}`;
 }
-

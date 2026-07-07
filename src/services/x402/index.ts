@@ -9,51 +9,51 @@
 
 // Configuration
 export {
-  generateX402PrivateKey,
-  getX402Config,
-  getX402PrivateKey,
-  getX402WalletAddress,
-  isX402Enabled,
-  removeX402PrivateKey,
-  saveX402Config,
-  saveX402PrivateKey,
-  setX402MaxPayment,
-  setX402MaxSessionSpend,
-  setX402Network,
-} from './config.js'
+	generateX402PrivateKey,
+	getX402Config,
+	getX402PrivateKey,
+	getX402WalletAddress,
+	isX402Enabled,
+	removeX402PrivateKey,
+	saveX402Config,
+	saveX402PrivateKey,
+	setX402MaxPayment,
+	setX402MaxSessionSpend,
+	setX402Network,
+} from "./config.js";
 
 // Payment client
 export {
-  createPayment,
-  encodePaymentHeader,
-  getFacilitatorUrl,
-  handlePaymentRequired,
-  parsePaymentRequirement,
-  validatePaymentRequirement,
-} from './client.js'
+	createPayment,
+	encodePaymentHeader,
+	getFacilitatorUrl,
+	handlePaymentRequired,
+	parsePaymentRequirement,
+	validatePaymentRequirement,
+} from "./client.js";
 
 // Fetch integration
 export {
-  addX402AxiosInterceptor,
-  wrapFetchWithX402,
-} from './paymentFetch.js'
+	addX402AxiosInterceptor,
+	wrapFetchWithX402,
+} from "./paymentFetch.js";
 
 // Cost tracking
 export {
-  addX402Payment,
-  formatX402Cost,
-  getX402PaymentCount,
-  getX402SessionPayments,
-  getX402SessionSpentUSD,
-  resetX402SessionPayments,
-} from './tracker.js'
+	addX402Payment,
+	formatX402Cost,
+	getX402PaymentCount,
+	getX402SessionPayments,
+	getX402SessionSpentUSD,
+	resetX402SessionPayments,
+} from "./tracker.js";
 
 // Types
 export type {
-  PaymentNetwork,
-  PaymentPayload,
-  PaymentRequirement,
-  PaymentScheme,
-  X402PaymentRecord,
-  X402WalletConfig,
-} from './types.js'
+	PaymentNetwork,
+	PaymentPayload,
+	PaymentRequirement,
+	PaymentScheme,
+	X402PaymentRecord,
+	X402WalletConfig,
+} from "./types.js";

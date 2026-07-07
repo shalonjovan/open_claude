@@ -1,1 +1,2 @@
-export const selfHostedRunner = {}; export default {};
+export const selfHostedRunner = {};
+export default {};

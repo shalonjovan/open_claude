@@ -1,1 +1,2 @@
-export function daemonMain() {}; export default {};
+export function daemonMain() {}
+export default {};

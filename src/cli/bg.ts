@@ -1,1 +1,2 @@
-export const bg = null; export default null;
+export const bg = null;
+export default null;

@@ -1,10 +1,10 @@
-import { createHash } from "crypto";
-import { readFileSync } from "fs";
-import { join } from "path";
-import type { IncomingMessage } from "http";
-import type { Application, Request, Response, NextFunction } from "express";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import type { IncomingMessage } from "node:http";
+import { join } from "node:path";
+import type { Application, NextFunction, Request, Response } from "express";
 import type { AuthAdapter, AuthUser, AuthenticatedRequest } from "./adapter.js";
-import { SessionStore } from "./adapter.js";
+import type { SessionStore } from "./adapter.js";
 
 /**
  * API-key authentication adapter.
@@ -22,116 +22,120 @@ import { SessionStore } from "./adapter.js";
  *                 prefixes that receive the admin role
  */
 export class ApiKeyAdapter implements AuthAdapter {
-  private readonly store: SessionStore;
-  private readonly adminUsers: ReadonlySet<string>;
+	private readonly store: SessionStore;
+	private readonly adminUsers: ReadonlySet<string>;
 
-  constructor(store: SessionStore) {
-    this.store = store;
-    this.adminUsers = new Set(
-      (process.env.ADMIN_USERS ?? "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
-    );
-  }
+	constructor(store: SessionStore) {
+		this.store = store;
+		this.adminUsers = new Set(
+			(process.env.ADMIN_USERS ?? "")
+				.split(",")
+				.map((s) => s.trim())
+				.filter(Boolean),
+		);
+	}
 
-  authenticate(req: IncomingMessage): AuthUser | null {
-    const session = this.store.getFromRequest(req);
-    if (!session || !session.encryptedApiKey) return null;
+	authenticate(req: IncomingMessage): AuthUser | null {
+		const session = this.store.getFromRequest(req);
+		if (!session || !session.encryptedApiKey) return null;
 
-    const apiKey = this.store.decrypt(session.encryptedApiKey);
-    if (!apiKey) return null;
+		const apiKey = this.store.decrypt(session.encryptedApiKey);
+		if (!apiKey) return null;
 
-    return {
-      id: session.userId,
-      email: session.email,
-      name: session.name,
-      isAdmin:
-        session.isAdmin ||
-        this.adminUsers.has(session.userId),
-      apiKey,
-    };
-  }
+		return {
+			id: session.userId,
+			email: session.email,
+			name: session.name,
+			isAdmin: session.isAdmin || this.adminUsers.has(session.userId),
+			apiKey,
+		};
+	}
 
-  setupRoutes(app: Application): void {
-    const loginHtml = this.loadLoginPage();
+	setupRoutes(app: Application): void {
+		const loginHtml = this.loadLoginPage();
 
-    // GET /auth/login — serve the API key login form
-    app.get("/auth/login", (_req, res) => {
-      res.setHeader("Content-Type", "text/html");
-      res.send(loginHtml);
-    });
+		// GET /auth/login — serve the API key login form
+		app.get("/auth/login", (_req, res) => {
+			res.setHeader("Content-Type", "text/html");
+			res.send(loginHtml);
+		});
 
-    // POST /auth/login — validate key, create encrypted session
-    app.post(
-      "/auth/login",
-      // express.urlencoded is registered in pty-server.ts before setupRoutes
-      (req: Request, res: Response) => {
-        const apiKey = (req.body as Record<string, string>)?.api_key?.trim() ?? "";
+		// POST /auth/login — validate key, create encrypted session
+		app.post(
+			"/auth/login",
+			// express.urlencoded is registered in pty-server.ts before setupRoutes
+			(req: Request, res: Response) => {
+				const apiKey =
+					(req.body as Record<string, string>)?.api_key?.trim() ?? "";
 
-        if (!apiKey.startsWith("sk-ant-")) {
-          res.setHeader("Content-Type", "text/html");
-          res.status(400).send(
-            loginHtml.replace(
-              "<!--ERROR-->",
-              `<p class="error">Invalid API key format. Keys must start with <code>sk-ant-</code>.</p>`,
-            ),
-          );
-          return;
-        }
+				if (!apiKey.startsWith("sk-ant-")) {
+					res.setHeader("Content-Type", "text/html");
+					res
+						.status(400)
+						.send(
+							loginHtml.replace(
+								"<!--ERROR-->",
+								`<p class="error">Invalid API key format. Keys must start with <code>sk-ant-</code>.</p>`,
+							),
+						);
+					return;
+				}
 
-        const userId = deriveUserId(apiKey);
-        const isAdmin = this.adminUsers.has(userId);
-        const encryptedApiKey = this.store.encrypt(apiKey);
+				const userId = deriveUserId(apiKey);
+				const isAdmin = this.adminUsers.has(userId);
+				const encryptedApiKey = this.store.encrypt(apiKey);
 
-        const sessionId = this.store.create({
-          userId,
-          isAdmin,
-          encryptedApiKey,
-        });
+				const sessionId = this.store.create({
+					userId,
+					isAdmin,
+					encryptedApiKey,
+				});
 
-        this.store.setCookie(res as unknown as import("http").ServerResponse, sessionId);
+				this.store.setCookie(
+					res as unknown as import("http").ServerResponse,
+					sessionId,
+				);
 
-        const next = (req.query as Record<string, string>)?.next;
-        res.redirect(next && next.startsWith("/") ? next : "/");
-      },
-    );
+				const next = (req.query as Record<string, string>)?.next;
+				res.redirect(next?.startsWith("/") ? next : "/");
+			},
+		);
 
-    // POST /auth/logout — destroy session
-    app.post("/auth/logout", (req, res) => {
-      const id = this.store.getIdFromRequest(req as unknown as IncomingMessage);
-      if (id) this.store.delete(id);
-      this.store.clearCookie(res as unknown as import("http").ServerResponse);
-      res.redirect("/auth/login");
-    });
-  }
+		// POST /auth/logout — destroy session
+		app.post("/auth/logout", (req, res) => {
+			const id = this.store.getIdFromRequest(req as unknown as IncomingMessage);
+			if (id) this.store.delete(id);
+			this.store.clearCookie(res as unknown as import("http").ServerResponse);
+			res.redirect("/auth/login");
+		});
+	}
 
-  requireAuth(req: Request, res: Response, next: NextFunction): void {
-    const user = this.authenticate(req as unknown as IncomingMessage);
-    if (!user) {
-      const accept = req.headers["accept"] ?? "";
-      if (accept.includes("application/json")) {
-        res.status(401).json({ error: "Unauthorized" });
-      } else {
-        res.redirect(`/auth/login?next=${encodeURIComponent(req.originalUrl)}`);
-      }
-      return;
-    }
-    (req as AuthenticatedRequest).user = user;
-    next();
-  }
+	requireAuth(req: Request, res: Response, next: NextFunction): void {
+		const user = this.authenticate(req as unknown as IncomingMessage);
+		if (!user) {
+			const accept = req.headers.accept ?? "";
+			if (accept.includes("application/json")) {
+				res.status(401).json({ error: "Unauthorized" });
+			} else {
+				res.redirect(`/auth/login?next=${encodeURIComponent(req.originalUrl)}`);
+			}
+			return;
+		}
+		(req as AuthenticatedRequest).user = user;
+		next();
+	}
 
-  // ── Internals ─────────────────────────────────────────────────────────────
+	// ── Internals ─────────────────────────────────────────────────────────────
 
-  private loadLoginPage(): string {
-    // Serve from the public directory at build time; fall back to inline HTML.
-    try {
-      const p = join(import.meta.dirname, "../public/login.html");
-      return readFileSync(p, "utf8");
-    } catch {
-      return INLINE_LOGIN_HTML;
-    }
-  }
+	private loadLoginPage(): string {
+		// Serve from the public directory at build time; fall back to inline HTML.
+		try {
+			const p = join(import.meta.dirname, "../public/login.html");
+			return readFileSync(p, "utf8");
+		} catch {
+			return INLINE_LOGIN_HTML;
+		}
+	}
 }
 
 /**
@@ -140,7 +144,7 @@ export class ApiKeyAdapter implements AuthAdapter {
  * long enough to be unique.
  */
 function deriveUserId(apiKey: string): string {
-  return createHash("sha256").update(apiKey).digest("hex").slice(0, 16);
+	return createHash("sha256").update(apiKey).digest("hex").slice(0, 16);
 }
 
 // Fallback inline login page used when public/login.html is not present.
