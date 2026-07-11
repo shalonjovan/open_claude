@@ -6,8 +6,8 @@
 // Watch mode:       bun scripts/build-bundle.ts --watch
 
 import * as esbuild from 'esbuild'
-import { resolve, dirname } from 'path'
-import { chmodSync, readFileSync, existsSync } from 'fs'
+import { resolve, dirname, isAbsolute } from 'path'
+import { chmodSync, readFileSync, existsSync, statSync } from 'fs'
 import { fileURLToPath } from 'url'
 
 // Bun: import.meta.dir — Node 21+: import.meta.dirname — fallback
@@ -34,7 +34,7 @@ const srcResolverPlugin: esbuild.Plugin = {
     // Resolve 'src/' prefixed imports
     build.onResolve({ filter: /^src\// }, (args) => {
       const basePath = resolve(ROOT, args.path)
-      if (existsSync(basePath)) return { path: basePath }
+      if (existsSync(basePath) && statSync(basePath).isFile()) return { path: basePath }
       const withoutExt = basePath.replace(/\.(js|jsx)$/, '')
       for (const ext of ['.ts', '.tsx', '.js', '.jsx']) {
         const candidate = withoutExt + ext
@@ -53,7 +53,7 @@ const srcResolverPlugin: esbuild.Plugin = {
     build.onResolve({ filter: /^\.\.?\// }, (args) => {
       const basePath = resolve(args.importer ? dirname(args.importer) : ROOT, args.path)
       // Check if it's a file import (has extension)
-      if (existsSync(basePath)) return { path: basePath }
+      if (existsSync(basePath) && statSync(basePath).isFile()) return { path: basePath }
       const withoutExt = basePath.replace(/\.(js|jsx)$/, '')
       for (const ext of ['.ts', '.tsx', '.js', '.jsx']) {
         const candidate = withoutExt + ext
@@ -74,6 +74,11 @@ const srcResolverPlugin: esbuild.Plugin = {
 
     // Catch-all: mark unresolvable npm packages as external
     build.onResolve({ filter: /^[^.\/]/ }, (args) => {
+      // Avoid resolving Node built-ins or packages explicitly marked as external
+      if (args.path.startsWith('node:') || buildOptions.external?.includes(args.path)) {
+        return { path: args.path, external: true }
+      }
+
       // Known problematic packages — always external
       const knownProblematic = [
         '@anthropic-ai/sandbox-runtime',
@@ -95,6 +100,9 @@ const srcResolverPlugin: esbuild.Plugin = {
       // Check if this resolves to a real package
       try {
         const resolved = require.resolve(args.path, { paths: [ROOT] })
+        if (!isAbsolute(resolved)) {
+          return { path: args.path, external: true }
+        }
         return { path: resolved }
       } catch {
         // Package can't be resolved — mark as external
@@ -108,6 +116,10 @@ const buildOptions: esbuild.BuildOptions = {
   entryPoints: [resolve(ROOT, 'src/entrypoints/cli.tsx')],
   bundle: true,
   platform: 'node',
+  loader: {
+    '.md': 'text',
+    '.txt': 'text',
+  },
   target: ['node20', 'es2022'],
   format: 'esm',
   outdir: resolve(ROOT, 'dist'),
